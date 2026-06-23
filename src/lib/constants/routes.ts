@@ -1,4 +1,7 @@
-export const NAV_ITEMS = [
+export type NavItem = { href: string; label: string };
+export type NavCategory = { label: string; items: NavItem[] };
+
+export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Accueil" },
   { href: "/metier", label: "Le métier" },
   { href: "/quotidien", label: "Le quotidien" },
@@ -14,6 +17,41 @@ export const NAV_ITEMS = [
   { href: "/galerie", label: "Galerie" },
   { href: "/contact", label: "Contact" },
 ] as const;
+
+export const NAV_CATEGORIES: NavCategory[] = [
+  {
+    label: "Présentation",
+    items: [
+      { href: "/metier", label: "Le métier" },
+      { href: "/quotidien", label: "Le quotidien" },
+      { href: "/difficultes", label: "Difficultés" },
+      { href: "/formation", label: "Formation & compétences" },
+    ],
+  },
+  {
+    label: "Écosystème",
+    items: [
+      { href: "/espaces", label: "Espaces d'exercice" },
+      { href: "/produits", label: "Produits & services" },
+      { href: "/achats", label: "Achats & flux" },
+      { href: "/economie", label: "Modèle économique" },
+    ],
+  },
+  {
+    label: "Ressources",
+    items: [
+      { href: "/outils", label: "Outils du métier" },
+      { href: "/reseau", label: "Modélisation réseau" },
+      { href: "/protocoles", label: "Protocoles métier" },
+    ],
+  },
+  {
+    label: "Média",
+    items: [
+      { href: "/galerie", label: "Galerie photos" },
+    ],
+  },
+];
 
 export const QUICK_LINKS = [
   { href: "/metier", label: "Découvrir le métier", desc: "Définition, conditions d'exercice, contexte Cameroun" },

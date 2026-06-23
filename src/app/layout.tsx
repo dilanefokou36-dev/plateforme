@@ -3,6 +3,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { ChatBot } from "@/components/chatbot/ChatBot";
 import { getSiteContent } from "@/lib/content/fetch-content";
+import AuthProvider from "./AuthProvider";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -32,16 +33,19 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Poppins:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="flex min-h-screen flex-col font-sans">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <ChatBot />
+        <AuthProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <ChatBot />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,83 +1,76 @@
 import { NextRequest } from "next/server";
-import https from "node:https";
 
-function httpsPost(url: string, data: object, key: string, timeoutMs = 15000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(data);
-    const u = new URL(url);
-    const req = https.request(
-      {
-        hostname: u.hostname,
-        path: u.pathname,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-          "Content-Length": Buffer.byteLength(body),
-        },
-        timeout: timeoutMs,
-      },
-      (res) => {
-        let chunk = "";
-        res.on("data", (c) => (chunk += c));
-        res.on("end", () => resolve(chunk));
-      }
-    );
-    req.on("error", (e) => reject(e));
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-    req.write(body);
-    req.end();
-  });
-}
+const FAQ: Record<string, string> = {
+  "horaires": "Les librairies au Cameroun ouvrent généralement de 8h à 18h30, du lundi au samedi. Certaines fermet le dimanche et les jours fériés.",
+  "salaire": "Le salaire d'un libraire au Cameroun varie entre 50 000 et 200 000 FCFA selon l'expérience et la structure.",
+  "formation": "Plusieurs formations existent : Bacc (Littérature), BTS (Commerce), Licence (Lettres modernes), Master (Métiers du livre).",
+  "prix": "Le prix du livre au Cameroun est fixé par l'éditeur ou l'importateur. La libraire applique une marge d'environ 30%.",
+  "fournisseur": "Les libraires s'approvisionnement auprès des éditeurs locaux (CLE, PUY) et des distributeurs (Dilicom, Hachette).",
+};
 
 export async function POST(req: NextRequest) {
-  const { question } = await req.json();
-
-  if (!process.env.OPENROUTER_API_KEY) {
-    return Response.json(
-      { answer: "L'assistant IA n'est pas configuré. Contactez l'administrateur." }
-    );
-  }
-
   try {
-    const raw = await httpsPost(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        model: "google/gemma-4-31b-it:free",
+    const { question } = await req.json();
+    if (!question) {
+      return Response.json({ answer: "Posez votre question sur le métier de libraire." });
+    }
+
+    const questionLower = question.toLowerCase();
+    for (const [key, answer] of Object.entries(FAQ)) {
+      if (questionLower.includes(key)) {
+        return Response.json({ answer });
+      }
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      return Response.json({
+        answer: "Je suis un assistant spécialisé sur le métier de libraire au Cameroun. Posez-moi une question sur les horaires, les salaires, les formations, les fournisseurs ou tout autre aspect du métier."
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-lite-preview-02-05:free",
         messages: [
           {
             role: "system",
-            content:
-              "Tu es un expert du métier de libraire au Cameroun. Réponds en français de façon concise et claire (max 5 phrases). Si la question ne concerne pas le métier de libraire, dis poliment que tu ne peux pas répondre et redirige vers le sujet.",
+            content: "Tu es un expert du métier de libraire au Cameroun. Réponds en français de façon concise et claire (max 5 phrases). Si la question ne concerne pas le métier de libraire, dis poliment que tu ne peux pas répondre.",
           },
           { role: "user", content: question },
         ],
         temperature: 0.7,
         max_tokens: 300,
-      },
-      process.env.OPENROUTER_API_KEY
-    );
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
 
-    const data = JSON.parse(raw);
-
-    if (data.error) {
-      console.error("OpenRouter error:", JSON.stringify(data.error));
-      return Response.json(
-        { answer: "Désolé, l'assistant IA a rencontré une erreur. Réessayez plus tard." }
-      );
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error("OpenRouter error:", res.status, txt);
+      return Response.json({ answer: trouverReponseLocale(questionLower) });
     }
 
-    const answer =
-      data?.choices?.[0]?.message?.content?.trim() ??
-      "Désolé, je n'ai pas pu générer de réponse.";
-    return Response.json({ answer });
+    const data = await res.json();
+    const answer = data?.choices?.[0]?.message?.content?.trim();
+    return Response.json({ answer: answer || trouverReponseLocale(questionLower) });
   } catch (e) {
     console.error("Chat error:", e instanceof Error ? e.message : String(e));
-    return Response.json(
-      { answer: "Désolé, l'assistant IA est momentanément indisponible." }
-    );
+    return Response.json({ answer: trouverReponseLocale("") });
   }
+}
+
+function trouverReponseLocale(q: string): string {
+  for (const [key, answer] of Object.entries(FAQ)) {
+    if (q.includes(key)) return answer;
+  }
+  return "Je suis un assistant sur le métier de libraire. Posez-moi une question sur les horaires, salaires, formations, fournisseurs, etc.";
 }
